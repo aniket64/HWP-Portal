@@ -1,0 +1,21 @@
+CREATE TABLE `auftraege` (
+	`airtableId` varchar(64) NOT NULL,
+	`opportunityName` text,
+	`appointmentNumber` varchar(64),
+	`orderNumber` varchar(64),
+	`technicianName` text,
+	`technicianAccountName` text,
+	`technicianAccountId` varchar(64),
+	`status` varchar(64),
+	`statusFreigabe` varchar(64),
+	`mehrkosten` text,
+	`pauschale` text,
+	`createdDate` varchar(32),
+	`lastScheduledEnd` varchar(32),
+	`targetEnd` varchar(32),
+	`fieldsJson` mediumtext NOT NULL,
+	`airtableCreatedTime` varchar(64),
+	`zuletzt_geaendert` varchar(64),
+	`syncedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `auftraege_airtableId` PRIMARY KEY(`airtableId`)
+);

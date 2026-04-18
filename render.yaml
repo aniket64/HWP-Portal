@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: hwp-portal
+    env: node
+    plan: starter
+    buildCommand: corepack enable && corepack prepare pnpm@10.4.1 --activate && pnpm install --frozen-lockfile && pnpm predeploy:render && pnpm build && pnpm db:migrate
+    startCommand: pnpm start
+    healthCheckPath: /api/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: AIRTABLE_API_KEY
+        sync: false
+      - key: AIRTABLE_BASE_ID
+        value: appjRcTYUcy6lmKx2
+      - key: AIRTABLE_USERS_TABLE_ID
+        value: tblLPxFTDRr0EocHR
+      - key: AIRTABLE_TEAMS_TABLE_ID
+        value: tbl9bnTlbptVYxC59
+      - key: USE_AIRTABLE_USERS
+        value: "true"
+      - key: USE_AIRTABLE_TEAMS
+        value: "true"
+      - key: BUILT_IN_FORGE_API_URL
+        sync: false
+      - key: BUILT_IN_FORGE_API_KEY
+        sync: false

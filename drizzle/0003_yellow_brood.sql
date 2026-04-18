@@ -1,0 +1,1 @@
+ALTER TABLE `airtable_cache` MODIFY COLUMN `data` mediumtext NOT NULL;

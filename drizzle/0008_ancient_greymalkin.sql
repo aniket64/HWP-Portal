@@ -1,0 +1,1 @@
+ALTER TABLE `mk_positionen` ADD `isFreitext` boolean DEFAULT false NOT NULL;
