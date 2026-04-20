@@ -276,7 +276,7 @@ export type MkPosition = typeof mkPositionen.$inferSelect;
 export type InsertMkPosition = typeof mkPositionen.$inferInsert;
 
 // Nachträge (HWP reicht ein, TOM/KAM prüft)
-const nachtragStatusEnum = pgEnum("nachtrag_status", ["offen", "freigegeben", "abgelehnt"]);
+export const nachtragStatusEnum = pgEnum("nachtrag_status", ["offen", "freigegeben", "abgelehnt"]);
 
 export const mkNachtraege = pgTable("mk_nachtraege", {
   id: serial("id").primaryKey(),
@@ -336,7 +336,7 @@ export type Team = typeof teams.$inferSelect;
 export type InsertTeam = typeof teams.$inferInsert;
 
 // Mitglieder eines Teams (KAM oder TOM)
-const teamRolleEnum = pgEnum("team_rolle", ["kam", "tom", "tl"]);
+export const teamRolleEnum = pgEnum("team_rolle", ["kam", "tom", "tl"]);
 
 export const teamMitglieder = pgTable("team_mitglieder", {
   id: serial("id").primaryKey(),

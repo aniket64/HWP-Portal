@@ -170,6 +170,17 @@ async function verifyDatabaseConnection() {
 }
 
 async function verifyAirtableConnection() {
+  const useAirtableUsers = process.env.USE_AIRTABLE_USERS === "true";
+  const useAirtableTeams = process.env.USE_AIRTABLE_TEAMS === "true";
+  const airtableRequired = useAirtableUsers || useAirtableTeams;
+
+  if (!airtableRequired) {
+    startupChecks.airtableConfigured = false;
+    startupChecks.airtableReachable = false;
+    console.log("[Startup] Airtable integration disabled by feature flags; skipping connectivity check");
+    return;
+  }
+
   startupChecks.airtableConfigured = Boolean(process.env.AIRTABLE_API_KEY);
 
   if (!startupChecks.airtableConfigured) {
@@ -255,13 +266,13 @@ async function verifyForgeConnection() {
 }
 
 function buildReadinessPayload() {
+  const airtableOk = !startupChecks.airtableConfigured || startupChecks.airtableReachable;
   const forgeOk = !startupChecks.forgeConfigured || startupChecks.forgeReachable;
 
   const ok =
     startupChecks.databaseConfigured &&
     startupChecks.databaseReachable &&
-    startupChecks.airtableConfigured &&
-    startupChecks.airtableReachable &&
+    airtableOk &&
     forgeOk &&
     isReady;
 

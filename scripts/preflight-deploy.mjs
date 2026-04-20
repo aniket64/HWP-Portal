@@ -5,14 +5,24 @@ import postgres from "postgres";
 const requiredEnv = [
   "DATABASE_URL",
   "JWT_SECRET",
-  "AIRTABLE_API_KEY",
-  "AIRTABLE_BASE_ID",
-  "AIRTABLE_USERS_TABLE_ID",
-  "AIRTABLE_TEAMS_TABLE_ID",
 ];
 
 function getMissingRequiredEnv() {
-  return requiredEnv.filter((key) => {
+  const useAirtableUsers = process.env.USE_AIRTABLE_USERS === "true";
+  const useAirtableTeams = process.env.USE_AIRTABLE_TEAMS === "true";
+  const airtableRequired = useAirtableUsers || useAirtableTeams;
+
+  const effectiveRequiredEnv = airtableRequired
+    ? [
+        ...requiredEnv,
+        "AIRTABLE_API_KEY",
+        "AIRTABLE_BASE_ID",
+        "AIRTABLE_USERS_TABLE_ID",
+        "AIRTABLE_TEAMS_TABLE_ID",
+      ]
+    : requiredEnv;
+
+  return effectiveRequiredEnv.filter((key) => {
     const value = process.env[key];
     return !value || !value.trim();
   });
@@ -35,6 +45,15 @@ async function verifyDatabaseConnection() {
 }
 
 async function verifyAirtableConnectivity() {
+  const useAirtableUsers = process.env.USE_AIRTABLE_USERS === "true";
+  const useAirtableTeams = process.env.USE_AIRTABLE_TEAMS === "true";
+  const airtableRequired = useAirtableUsers || useAirtableTeams;
+
+  if (!airtableRequired) {
+    console.log("[preflight] Airtable integration disabled by feature flags; skipping Airtable connectivity check");
+    return;
+  }
+
   const baseId = process.env.AIRTABLE_BASE_ID;
   const usersTableId = process.env.AIRTABLE_USERS_TABLE_ID;
   const teamsTableId = process.env.AIRTABLE_TEAMS_TABLE_ID;

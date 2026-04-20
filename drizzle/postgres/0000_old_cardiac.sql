@@ -1,5 +1,7 @@
 CREATE TYPE "public"."mk_rechnung_status" AS ENUM('entwurf', 'abgeschlossen', 'terminiert', 'nachtrag', 'freigegeben', 'abgelehnt');--> statement-breakpoint
+CREATE TYPE "public"."nachtrag_status" AS ENUM('offen', 'freigegeben', 'abgelehnt');--> statement-breakpoint
 CREATE TYPE "public"."role" AS ENUM('admin', 'hwp', 'tom', 'kam', 'tl');--> statement-breakpoint
+CREATE TYPE "public"."team_rolle" AS ENUM('kam', 'tom', 'tl');--> statement-breakpoint
 CREATE TABLE "airtable_cache" (
 	"cacheKey" varchar(255) PRIMARY KEY NOT NULL,
 	"data" text NOT NULL,
