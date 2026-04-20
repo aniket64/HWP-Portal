@@ -214,12 +214,23 @@ async function verifyForgeConnection() {
   const forgeUrl = process.env.BUILT_IN_FORGE_API_URL;
   const forgeKey = process.env.BUILT_IN_FORGE_API_KEY;
 
-  startupChecks.forgeConfigured = Boolean(forgeUrl) && Boolean(forgeKey);
-  if (!startupChecks.forgeConfigured) {
+  const hasForgeUrl = Boolean(forgeUrl);
+  const hasForgeKey = Boolean(forgeKey);
+
+  if (!hasForgeUrl && !hasForgeKey) {
+    startupChecks.forgeConfigured = false;
+    startupChecks.forgeReachable = false;
+    console.log("[Startup] Forge storage not configured; continuing without Forge");
+    return;
+  }
+
+  if (!hasForgeUrl || !hasForgeKey) {
     throw new Error(
-      "BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY are required"
+      "BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY must both be set when Forge is enabled"
     );
   }
+
+  startupChecks.forgeConfigured = true;
 
   const baseUrl = forgeUrl!.endsWith("/") ? forgeUrl! : `${forgeUrl!}/`;
   const url = new URL("v1/storage/downloadUrl", baseUrl);
@@ -244,13 +255,14 @@ async function verifyForgeConnection() {
 }
 
 function buildReadinessPayload() {
+  const forgeOk = !startupChecks.forgeConfigured || startupChecks.forgeReachable;
+
   const ok =
     startupChecks.databaseConfigured &&
     startupChecks.databaseReachable &&
     startupChecks.airtableConfigured &&
     startupChecks.airtableReachable &&
-    startupChecks.forgeConfigured &&
-    startupChecks.forgeReachable &&
+    forgeOk &&
     isReady;
 
   return {

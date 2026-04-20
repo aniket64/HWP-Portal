@@ -9,8 +9,6 @@ const requiredEnv = [
   "AIRTABLE_BASE_ID",
   "AIRTABLE_USERS_TABLE_ID",
   "AIRTABLE_TEAMS_TABLE_ID",
-  "BUILT_IN_FORGE_API_URL",
-  "BUILT_IN_FORGE_API_KEY",
 ];
 
 function getMissingRequiredEnv() {
@@ -66,6 +64,18 @@ async function verifyAirtableConnectivity() {
 async function verifyForgeConnectivity() {
   const baseUrl = process.env.BUILT_IN_FORGE_API_URL;
   const apiKey = process.env.BUILT_IN_FORGE_API_KEY;
+
+  if (!baseUrl && !apiKey) {
+    console.log("[preflight] Forge not configured; skipping Forge connectivity check");
+    return;
+  }
+
+  if (!baseUrl || !apiKey) {
+    throw new Error(
+      "BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY must both be set when Forge is enabled"
+    );
+  }
+
   const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const url = new URL("v1/storage/downloadUrl", normalizedBaseUrl);
   url.searchParams.set("path", "render-preflight.txt");
@@ -103,7 +113,6 @@ async function main() {
   console.log("[preflight] Environment variables validated");
   console.log("[preflight] Database connectivity verified");
   console.log("[preflight] Airtable connectivity verified");
-  console.log("[preflight] Forge connectivity verified");
   console.log("[preflight] Render deployment preflight checks passed");
 }
 

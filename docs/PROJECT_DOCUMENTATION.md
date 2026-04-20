@@ -298,13 +298,15 @@ Required Render environment variables:
 - DATABASE_URL (secret)
 - JWT_SECRET (secret)
 - AIRTABLE_API_KEY (secret)
-- BUILT_IN_FORGE_API_URL (secret)
-- BUILT_IN_FORGE_API_KEY (secret)
 - AIRTABLE_BASE_ID
 - AIRTABLE_USERS_TABLE_ID
 - AIRTABLE_TEAMS_TABLE_ID
 - USE_AIRTABLE_USERS (true/false)
 - USE_AIRTABLE_TEAMS (true/false)
+
+Optional Render environment variables:
+- BUILT_IN_FORGE_API_URL (secret, only required when enabling Forge-backed storage/maps proxy features)
+- BUILT_IN_FORGE_API_KEY (secret, only required when enabling Forge-backed storage/maps proxy features)
 
 Configured non-secret environment variables:
 - NODE_ENV=production
@@ -318,7 +320,7 @@ Configured non-secret environment variables:
 Release behavior:
 - Database migrations are executed during build via `pnpm db:migrate`.
 - Preflight validation runs before build via `pnpm predeploy:render` and verifies required env vars, Airtable flags, and database connectivity.
-- Preflight validation runs before build via `pnpm predeploy:render` and verifies required env vars, Airtable flags, database connectivity, Airtable table access, and Forge storage API access.
+- Preflight validation runs before build via `pnpm predeploy:render` and verifies required env vars, Airtable flags, database connectivity, and Airtable table access. Forge storage API access is validated only when Forge env vars are set.
 - Build artifact verification runs at the end of `pnpm build` via `scripts/verify-build.mjs`.
 - Production static assets are served from `dist/public`.
 - Server bundle is started from `dist/index.js` through `pnpm start`.
@@ -329,7 +331,7 @@ Post-deploy smoke tests:
 - Open `/api/ready` and verify HTTP 200 with `ok: true` (readiness).
 - Verify `checks.databaseReachable` is true on `/api/ready`.
 - Verify `checks.airtableReachable` is true on `/api/ready`.
-- Verify `checks.forgeReachable` is true on `/api/ready`.
+- If Forge is configured, verify `checks.forgeReachable` is true on `/api/ready`.
 - Validate login flow and protected route access.
 - Create a user from Admin UI and confirm it appears in Airtable Users table.
 - Verify browser network requests for app assets under `/assets/*` return 200.

@@ -4,8 +4,6 @@ const requiredInProduction = [
   "DATABASE_URL",
   "JWT_SECRET",
   "AIRTABLE_API_KEY",
-  "BUILT_IN_FORGE_API_URL",
-  "BUILT_IN_FORGE_API_KEY",
 ];
 
 export function validateRuntimeEnv() {
