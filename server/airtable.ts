@@ -206,25 +206,26 @@ async function upsertRecordsBatch(records: MehrkostenRecord[]): Promise<void> {
     await db
       .insert(auftraege)
       .values(rows)
-      .onDuplicateKeyUpdate({
+      .onConflictDoUpdate({
+        target: auftraege.airtableId,
         set: {
-          opportunityName: sql`VALUES(opportunityName)`,
-          appointmentNumber: sql`VALUES(appointmentNumber)`,
-          orderNumber: sql`VALUES(orderNumber)`,
-          technicianName: sql`VALUES(technicianName)`,
-          technicianAccountName: sql`VALUES(technicianAccountName)`,
-          technicianAccountId: sql`VALUES(technicianAccountId)`,
-          status: sql`VALUES(status)`,
-          statusFreigabe: sql`VALUES(statusFreigabe)`,
-          mehrkosten: sql`VALUES(mehrkosten)`,
-          pauschale: sql`VALUES(pauschale)`,
-          createdDate: sql`VALUES(createdDate)`,
-          lastScheduledEnd: sql`VALUES(lastScheduledEnd)`,
-          targetEnd: sql`VALUES(targetEnd)`,
-          fieldsJson: sql`VALUES(fieldsJson)`,
-          airtableCreatedTime: sql`VALUES(airtableCreatedTime)`,
-          zuletzt_geaendert: sql`VALUES(zuletzt_geaendert)`,
-          syncedAt: sql`NOW()`,
+          opportunityName: sql`excluded."opportunityName"`,
+          appointmentNumber: sql`excluded."appointmentNumber"`,
+          orderNumber: sql`excluded."orderNumber"`,
+          technicianName: sql`excluded."technicianName"`,
+          technicianAccountName: sql`excluded."technicianAccountName"`,
+          technicianAccountId: sql`excluded."technicianAccountId"`,
+          status: sql`excluded."status"`,
+          statusFreigabe: sql`excluded."statusFreigabe"`,
+          mehrkosten: sql`excluded."mehrkosten"`,
+          pauschale: sql`excluded."pauschale"`,
+          createdDate: sql`excluded."createdDate"`,
+          lastScheduledEnd: sql`excluded."lastScheduledEnd"`,
+          targetEnd: sql`excluded."targetEnd"`,
+          fieldsJson: sql`excluded."fieldsJson"`,
+          airtableCreatedTime: sql`excluded."airtableCreatedTime"`,
+          zuletzt_geaendert: sql`excluded."zuletzt_geaendert"`,
+          syncedAt: new Date(),
         },
       });
   }

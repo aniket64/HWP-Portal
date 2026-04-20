@@ -36,7 +36,10 @@ export async function setSetting(key: string, value: string, userId?: number): P
   await db
     .insert(appSettings)
     .values({ key, value, updatedBy: userId ?? null })
-    .onDuplicateKeyUpdate({ set: { value, updatedBy: userId ?? null } });
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedBy: userId ?? null, updatedAt: new Date() },
+    });
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {
@@ -86,7 +89,10 @@ export async function setCached<T>(cacheKey: string, data: T): Promise<void> {
   await db
     .insert(airtableCache)
     .values({ cacheKey, data: serialized, fetchedAt: new Date(), expiresAt })
-    .onDuplicateKeyUpdate({ set: { data: serialized, fetchedAt: new Date(), expiresAt } });
+    .onConflictDoUpdate({
+      target: airtableCache.cacheKey,
+      set: { data: serialized, fetchedAt: new Date(), expiresAt },
+    });
   // Letzten Sync-Zeitpunkt speichern
   await setSetting(SETTINGS_KEYS.AIRTABLE_LAST_SYNC, new Date().toISOString());
 }

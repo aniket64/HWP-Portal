@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import {
   defaultPermissions,
   InsertUser,
@@ -22,6 +23,7 @@ import {
 import * as airtableClient from "./airtableClient";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _sqlClient: postgres.Sql | null = null;
 
 type MemoryRolePermission = {
   id: number;
@@ -215,9 +217,14 @@ async function resolveAirtableTeamRecordId(teamId: number): Promise<string | und
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _sqlClient = postgres(process.env.DATABASE_URL);
+      _db = drizzle(_sqlClient);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
+      if (_sqlClient) {
+        await _sqlClient.end({ timeout: 5 }).catch(() => undefined);
+      }
+      _sqlClient = null;
       _db = null;
     }
   }
@@ -479,7 +486,10 @@ export async function upsertRolePermission(
   await db
     .insert(rolePermissions)
     .values({ role: role as any, permissions, updatedBy })
-    .onDuplicateKeyUpdate({ set: { permissions, updatedBy } });
+    .onConflictDoUpdate({
+      target: rolePermissions.role,
+      set: { permissions, updatedBy, updatedAt: new Date() },
+    });
 }
 
 export async function initDefaultPermissions() {

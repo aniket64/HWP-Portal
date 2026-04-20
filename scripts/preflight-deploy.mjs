@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { createConnection } from "mysql2/promise";
+import postgres from "postgres";
 
 const requiredEnv = [
   "DATABASE_URL",
@@ -26,11 +26,11 @@ function assertBooleanFlag(name) {
 }
 
 async function verifyDatabaseConnection() {
-  const connection = await createConnection(process.env.DATABASE_URL);
+  const connection = postgres(process.env.DATABASE_URL);
   try {
-    await connection.query("SELECT 1");
+    await connection`SELECT 1`;
   } finally {
-    await connection.end();
+    await connection.end({ timeout: 5 });
   }
 }
 

@@ -1,17 +1,17 @@
 import {
   boolean,
-  int,
+  integer,
   json,
-  mediumtext,
-  mysqlEnum,
-  mysqlTable,
+  pgEnum,
+  pgTable,
+  serial,
   text,
   timestamp,
   varchar,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/pg-core";
 
 // ─── Rollen ───────────────────────────────────────────────────────────────────
-export const roleEnum = mysqlEnum("role", ["admin", "hwp", "tom", "kam", "tl"]);
+export const roleEnum = pgEnum("role", ["admin", "hwp", "tom", "kam", "tl"]);
 
 // ─── Berechtigungen (JSON-Objekt pro Rolle) ───────────────────────────────────
 // Wird in der permissions-Tabelle gespeichert und kann vom Admin angepasst werden
@@ -92,19 +92,19 @@ export const defaultPermissions: Record<string, PermissionSet> = {
 };
 
 // ─── Users ────────────────────────────────────────────────────────────────────
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   email: varchar("email", { length: 320 }).notNull().unique(),
   passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
   name: text("name").notNull(),
-  role: roleEnum.notNull().default("hwp"),
+  role: roleEnum("role").notNull().default("hwp"),
   // Für HWP: Verknüpfung mit Airtable Account ID
   airtableAccountId: varchar("airtableAccountId", { length: 64 }),
   // Für HWP: Firmenname
   companyName: varchar("companyName", { length: 255 }),
   isActive: boolean("isActive").notNull().default(true),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn"),
 });
 
@@ -112,30 +112,30 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // ─── Rollen-Berechtigungen (anpassbar durch Admin) ───────────────────────────
-export const rolePermissions = mysqlTable("role_permissions", {
-  id: int("id").autoincrement().primaryKey(),
-  role: roleEnum.notNull().unique(),
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  role: roleEnum("role").notNull().unique(),
   permissions: json("permissions").notNull().$type<PermissionSet>(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  updatedBy: integer("updatedBy"),
 });
 
 export type RolePermission = typeof rolePermissions.$inferSelect;
 
 // ─── App-Einstellungen ───────────────────────────────────────────────────────
-export const appSettings = mysqlTable("app_settings", {
+export const appSettings = pgTable("app_settings", {
   key: varchar("key", { length: 128 }).primaryKey(),
   value: text("value").notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  updatedBy: int("updatedBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  updatedBy: integer("updatedBy"),
 });
 
 export type AppSetting = typeof appSettings.$inferSelect;
 
 // ─── Airtable Cache (für kleine Objekte: Stats, Pauschalen, etc.) ─────────────
-export const airtableCache = mysqlTable("airtable_cache", {
+export const airtableCache = pgTable("airtable_cache", {
   cacheKey: varchar("cacheKey", { length: 255 }).primaryKey(),
-  data: mediumtext("data").notNull(),
+  data: text("data").notNull(),
   fetchedAt: timestamp("fetchedAt").defaultNow().notNull(),
   expiresAt: timestamp("expiresAt").notNull(),
 });
@@ -144,7 +144,7 @@ export type AirtableCache = typeof airtableCache.$inferSelect;
 
 // ─── Aufträge (einzelne Airtable-Datensätze, skalierbar) ─────────────────────
 // Jeder Airtable-Datensatz bekommt eine eigene Zeile – kein Größenlimit-Problem
-export const auftraege = mysqlTable("auftraege", {
+export const auftraege = pgTable("auftraege", {
   airtableId: varchar("airtableId", { length: 64 }).primaryKey(),
   // Wichtige Felder für Filterung/Sortierung (indiziert)
   opportunityName: text("opportunityName"),
@@ -161,7 +161,7 @@ export const auftraege = mysqlTable("auftraege", {
   lastScheduledEnd: varchar("lastScheduledEnd", { length: 32 }),
   targetEnd: varchar("targetEnd", { length: 32 }),
   // Vollständige Felder als JSON
-  fieldsJson: mediumtext("fieldsJson").notNull(),
+  fieldsJson: text("fieldsJson").notNull(),
   // Sync-Metadaten
   airtableCreatedTime: varchar("airtableCreatedTime", { length: 64 }),
   zuletzt_geaendert: varchar("zuletzt_geaendert", { length: 64 }),
@@ -209,7 +209,7 @@ export const DASHBOARD_WIDGETS_KEY = "dashboard_widget_config";
 // ─── Mehrkosten-Modul ───────────────────────────────────────────────────────
 
 // Status einer Mehrkosten-Rechnung
-export const mkRechnungStatusEnum = mysqlEnum("mk_rechnung_status", [
+export const mkRechnungStatusEnum = pgEnum("mk_rechnung_status", [
   "entwurf",        // TOM arbeitet noch daran
   "abgeschlossen",  // TOM hat klassifiziert, wartet auf Terminierung
   "terminiert",     // Kunde wurde terminiert + HWP zugewiesen
@@ -219,8 +219,8 @@ export const mkRechnungStatusEnum = mysqlEnum("mk_rechnung_status", [
 ]);
 
 // Eine Mehrkosten-Rechnung pro Auftrag (Order Number)
-export const mkRechnungen = mysqlTable("mk_rechnungen", {
-  id: int("id").autoincrement().primaryKey(),
+export const mkRechnungen = pgTable("mk_rechnungen", {
+  id: serial("id").primaryKey(),
   orderNumber: varchar("orderNumber", { length: 64 }).notNull(),
   // Verknüpfung mit Airtable-Datensatz (aus HI Klassifizierung)
   airtableAppointmentsId: varchar("airtableAppointmentsId", { length: 64 }),
@@ -229,42 +229,42 @@ export const mkRechnungen = mysqlTable("mk_rechnungen", {
   hwpName: varchar("hwpName", { length: 255 }),
   hwpAccountId: varchar("hwpAccountId", { length: 64 }),
   // UV-Anzahl (bestimmt Pauschale und Pauschalen-Abzug)
-  uvAnzahl: int("uvAnzahl").notNull().default(1),
+  uvAnzahl: integer("uvAnzahl").notNull().default(1),
   // Pauschale (automatisch aus UV-Anzahl + HWP-Konditionen berechnet)
-  pauschaleBetrag: int("pauschaleBetrag").notNull().default(0),
+  pauschaleBetrag: integer("pauschaleBetrag").notNull().default(0),
   // Berechnete Summen (in Cent, um Floating-Point-Fehler zu vermeiden)
-  summeOhnePauschale: int("summeOhnePauschale").notNull().default(0),
-  summeMitPauschale: int("summeMitPauschale").notNull().default(0),
+  summeOhnePauschale: integer("summeOhnePauschale").notNull().default(0),
+  summeMitPauschale: integer("summeMitPauschale").notNull().default(0),
   // Workflow-Status
-  status: mkRechnungStatusEnum.notNull().default("entwurf"),
+  status: mkRechnungStatusEnum("status").notNull().default("entwurf"),
   // Wer hat die Klassifizierung erstellt
-  erstelltVon: int("erstelltVon").notNull(),
+  erstelltVon: integer("erstelltVon").notNull(),
   erstelltVonName: varchar("erstelltVonName", { length: 255 }),
   // Zeitstempel
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type MkRechnung = typeof mkRechnungen.$inferSelect;
 export type InsertMkRechnung = typeof mkRechnungen.$inferInsert;
 
 // Einzelne Positionen einer Mehrkosten-Rechnung
-export const mkPositionen = mysqlTable("mk_positionen", {
-  id: int("id").autoincrement().primaryKey(),
-  rechnungId: int("rechnungId").notNull(),
+export const mkPositionen = pgTable("mk_positionen", {
+  id: serial("id").primaryKey(),
+  rechnungId: integer("rechnungId").notNull(),
   // Positions-Typ (aus dem Katalog)
   positionKey: varchar("positionKey", { length: 64 }).notNull(),
   positionLabel: varchar("positionLabel", { length: 255 }).notNull(),
   einheit: varchar("einheit", { length: 32 }).notNull(), // "Meter" oder "Menge"
-  einzelpreis: int("einzelpreis").notNull(), // in Cent
-  menge: int("menge").notNull().default(0),
+  einzelpreis: integer("einzelpreis").notNull(), // in Cent
+  menge: integer("menge").notNull().default(0),
   // Ist diese Position durch die Pauschale abgedeckt?
   inPauschaleEnthalten: boolean("inPauschaleEnthalten").notNull().default(false),
   // Menge die durch Pauschale abgedeckt ist
-  pauschaleMenge: int("pauschaleMenge").notNull().default(0),
+  pauschaleMenge: integer("pauschaleMenge").notNull().default(0),
   // Netto-Menge (menge - pauschaleMenge, mindestens 0)
-  nettomenge: int("nettomenge").notNull().default(0),
-  gesamtpreis: int("gesamtpreis").notNull().default(0), // nettomenge * einzelpreis
+  nettomenge: integer("nettomenge").notNull().default(0),
+  gesamtpreis: integer("gesamtpreis").notNull().default(0), // nettomenge * einzelpreis
   // Quelle: "klassifizierung" (TOM) oder "nachtrag" (HWP)
   quelle: varchar("quelle", { length: 32 }).notNull().default("klassifizierung"),
   // Freitext-Position (nicht aus dem Katalog, vom Nutzer frei eingegeben)
@@ -276,28 +276,30 @@ export type MkPosition = typeof mkPositionen.$inferSelect;
 export type InsertMkPosition = typeof mkPositionen.$inferInsert;
 
 // Nachträge (HWP reicht ein, TOM/KAM prüft)
-export const mkNachtraege = mysqlTable("mk_nachtraege", {
-  id: int("id").autoincrement().primaryKey(),
-  rechnungId: int("rechnungId").notNull(),
+const nachtragStatusEnum = pgEnum("nachtrag_status", ["offen", "freigegeben", "abgelehnt"]);
+
+export const mkNachtraege = pgTable("mk_nachtraege", {
+  id: serial("id").primaryKey(),
+  rechnungId: integer("rechnungId").notNull(),
   // Wer hat den Nachtrag eingereicht
-  eingereichtVon: int("eingereichtVon").notNull(),
+  eingereichtVon: integer("eingereichtVon").notNull(),
   eingereichtVonName: varchar("eingereichtVonName", { length: 255 }),
   eingereichtAt: timestamp("eingereichtAt").defaultNow().notNull(),
   // Summe des Nachtrags
-  summeOhnePauschale: int("summeOhnePauschale").notNull().default(0),
-  summeMitPauschale: int("summeMitPauschale").notNull().default(0),
+  summeOhnePauschale: integer("summeOhnePauschale").notNull().default(0),
+  summeMitPauschale: integer("summeMitPauschale").notNull().default(0),
   // Kommentar des HWP
   hwpKommentar: text("hwpKommentar"),
   // Freigabe-Status
-  status: mysqlEnum("nachtrag_status", ["offen", "freigegeben", "abgelehnt"]).notNull().default("offen"),
+  status: nachtragStatusEnum("status").notNull().default("offen"),
   // Wer hat geprüft
-  geprueftVon: int("geprueftVon"),
+  geprueftVon: integer("geprueftVon"),
   geprueftVonName: varchar("geprueftVonName", { length: 255 }),
   geprueftAt: timestamp("geprueftAt"),
   // Kommentar des Prüfers
   prueferKommentar: text("prueferKommentar"),
   // Freigegebener Betrag (kann vom beantragten abweichen)
-  freigegebenerBetrag: int("freigegebenerBetrag"),
+  freigegebenerBetrag: integer("freigegebenerBetrag"),
 });
 
 export type MkNachtrag = typeof mkNachtraege.$inferSelect;
@@ -305,10 +307,10 @@ export type InsertMkNachtrag = typeof mkNachtraege.$inferInsert;
 
 // ─── KAM/TOM–HWP-Zuordnungen ────────────────────────────────────────────────
 // Welche HWP-Partner sind einem KAM/TOM zugeordnet?
-export const userHwpAssignments = mysqlTable("user_hwp_assignments", {
-  id: int("id").autoincrement().primaryKey(),
+export const userHwpAssignments = pgTable("user_hwp_assignments", {
+  id: serial("id").primaryKey(),
   // Der KAM/TOM-Nutzer
-  userId: int("userId").notNull(),
+  userId: integer("userId").notNull(),
   // Airtable Account ID des HWP (aus auftraege.technicianAccountId)
   hwpAccountId: varchar("hwpAccountId", { length: 64 }).notNull(),
   // Anzeigename des HWP (gecacht für schnelle Anzeige)
@@ -321,25 +323,27 @@ export type InsertUserHwpAssignment = typeof userHwpAssignments.$inferInsert;
 
 // ─── Teams ───────────────────────────────────────────────────────────────────
 // Ein Team besteht aus KAM/TOM-Mitgliedern und zugeordneten HWP-Partnern
-export const teams = mysqlTable("teams", {
-  id: int("id").autoincrement().primaryKey(),
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   beschreibung: text("beschreibung"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  createdBy: int("createdBy"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  createdBy: integer("createdBy"),
 });
 
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = typeof teams.$inferInsert;
 
 // Mitglieder eines Teams (KAM oder TOM)
-export const teamMitglieder = mysqlTable("team_mitglieder", {
-  id: int("id").autoincrement().primaryKey(),
-  teamId: int("teamId").notNull(),
-  userId: int("userId").notNull(),
+const teamRolleEnum = pgEnum("team_rolle", ["kam", "tom", "tl"]);
+
+export const teamMitglieder = pgTable("team_mitglieder", {
+  id: serial("id").primaryKey(),
+  teamId: integer("teamId").notNull(),
+  userId: integer("userId").notNull(),
   // Rolle des Mitglieds im Team (zur Anzeige, nicht zur Berechtigungsprüfung)
-  teamRolle: mysqlEnum("team_rolle", ["kam", "tom", "tl"]).notNull().default("tom"),
+  teamRolle: teamRolleEnum("teamRolle").notNull().default("tom"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -347,9 +351,9 @@ export type TeamMitglied = typeof teamMitglieder.$inferSelect;
 export type InsertTeamMitglied = typeof teamMitglieder.$inferInsert;
 
 // HWP-Partner die einem Team zugeordnet sind
-export const teamHwpZuordnungen = mysqlTable("team_hwp_zuordnungen", {
-  id: int("id").autoincrement().primaryKey(),
-  teamId: int("teamId").notNull(),
+export const teamHwpZuordnungen = pgTable("team_hwp_zuordnungen", {
+  id: serial("id").primaryKey(),
+  teamId: integer("teamId").notNull(),
   hwpAccountId: varchar("hwpAccountId", { length: 64 }).notNull(),
   hwpName: varchar("hwpName", { length: 255 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -359,9 +363,9 @@ export type TeamHwpZuordnung = typeof teamHwpZuordnungen.$inferSelect;
 export type InsertTeamHwpZuordnung = typeof teamHwpZuordnungen.$inferInsert;
 
 // ─── Audit Log (für Admin-Aktionen) ──────────────────────────────────────────
-export const auditLog = mysqlTable("audit_log", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const auditLog = pgTable("audit_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
   action: varchar("action", { length: 128 }).notNull(),
   targetType: varchar("targetType", { length: 64 }),
   targetId: varchar("targetId", { length: 64 }),
