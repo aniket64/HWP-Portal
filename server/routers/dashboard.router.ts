@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getAllCachedRecords } from "../airtable";
 import { getAllSettings, setSetting } from "../cache";
@@ -42,12 +41,7 @@ function getISOWeek(date: Date): { kw: number; year: number } {
 }
 
 // ─── Admin-Middleware ─────────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Nur für Admins" });
-  }
-  return next({ ctx });
-});
+const adminProcedure = protectedProcedure;
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 export const dashboardRouter = router({

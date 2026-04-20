@@ -6,18 +6,15 @@ import {
   getAllHwpAssignments,
   getAllUsers,
   getHwpAssignmentsForUser,
-  getRolePermissions,
   getUserByEmail,
   getUserById,
   setHwpAssignmentsForUser,
   updateUser,
-  upsertRolePermission,
 } from "./db";
 import {
   createJWT,
   COOKIE_NAME,
   hashPassword,
-  seedAdminIfNeeded,
   verifyPassword,
 } from "./auth";
 import {
@@ -48,18 +45,9 @@ import { mehrkostenRouter as mkKlassifizierungRouter } from "./routers/mehrkoste
 import { hwpRouter } from "./routers/hwp.router";
 import { teamsRouter } from "./routers/teams.router";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import type { PermissionSet } from "../drizzle/schema";
 
-// ─── Middleware: Admin-Only ───────────────────────────────────────────────────
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Nur für Admins" });
-  }
-  return next({ ctx });
-});
-
-// ─── Seed beim Start ─────────────────────────────────────────────────────────
-seedAdminIfNeeded().catch(console.error);
+// ─── Middleware: Authenticated-only ─────────────────────────────────────────
+const adminProcedure = protectedProcedure;
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 export const appRouter = router({
@@ -99,7 +87,7 @@ export const appRouter = router({
             message: "E-Mail oder Passwort falsch",
           });
         }
-        const token = await createJWT(user.id, user.role);
+        const token = await createJWT(user.id);
         ctx.res.cookie(COOKIE_NAME, token, {
           httpOnly: true,
           secure: true,
@@ -123,8 +111,8 @@ export const appRouter = router({
     }),
 
     /**
-     * Öffentliche Registrierung für HWP-Partner.
-     * Konto wird mit Rolle "hwp" angelegt, aber inaktiv bis Admin freigibt.
+    * Öffentliche Registrierung für HWP-Partner.
+    * Konto wird inaktiv bis ein interner Nutzer es freischaltet.
      */
     registerHwp: publicProcedure
       .input(z.object({
@@ -144,7 +132,6 @@ export const appRouter = router({
           email: input.email.toLowerCase(),
           passwordHash,
           name: input.name,
-          role: "hwp",
           companyName: input.companyName,
           airtableAccountId: input.airtableAccountId,
           isActive: false, // Muss vom Admin freigeschaltet werden
@@ -167,7 +154,6 @@ export const appRouter = router({
           email: z.string().email(),
           password: z.string().min(8),
           name: z.string().min(1),
-          role: z.enum(["admin", "hwp", "tom", "kam", "tl"]),
           airtableAccountId: z.string().optional(),
           companyName: z.string().optional(),
         })
@@ -182,7 +168,6 @@ export const appRouter = router({
           email: input.email.toLowerCase(),
           passwordHash,
           name: input.name,
-          role: input.role,
           airtableAccountId: input.airtableAccountId,
           companyName: input.companyName,
           isActive: true,
@@ -198,7 +183,6 @@ export const appRouter = router({
           id: z.number(),
           name: z.string().min(1).optional(),
           email: z.string().email().optional(),
-          role: z.enum(["admin", "hwp", "tom", "kam", "tl"]).optional(),
           isActive: z.boolean().optional(),
           airtableAccountId: z.string().optional().nullable(),
           companyName: z.string().optional().nullable(),
@@ -308,38 +292,8 @@ export const appRouter = router({
       }),
   }),
 
-  // ── Rollen-Berechtigungen ─────────────────────────────────────────────────
-  permissions: router({
-    list: protectedProcedure.query(async () => {
-      return getRolePermissions();
-    }),
-    update: adminProcedure
-      .input(
-        z.object({
-          role: z.enum(["admin", "hwp", "tom", "kam", "tl"]),
-          permissions: z.object({
-            viewMehrkosten: z.boolean(),
-            editMehrkosten: z.boolean(),
-            approveMehrkosten: z.boolean(),
-            viewAllHWP: z.boolean(),
-            viewOwnHWP: z.boolean(),
-            manageUsers: z.boolean(),
-            manageRoles: z.boolean(),
-            viewInvoices: z.boolean(),
-            uploadDocuments: z.boolean(),
-            viewReports: z.boolean(),
-          }),
-        })
-      )
-      .mutation(async ({ input, ctx }) => {
-        await upsertRolePermission(
-          input.role,
-          input.permissions as PermissionSet,
-          (ctx.user as any).id
-        );
-        return { success: true };
-      }),
-  }),
+  // ── Rollen-Berechtigungen entfernt ─────────────────────────────────────────
+  permissions: router({}),
 
   // ── Admin-Einstellungen ───────────────────────────────────────────────────
   settings: router({

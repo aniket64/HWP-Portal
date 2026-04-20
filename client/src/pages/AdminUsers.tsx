@@ -63,16 +63,13 @@ import {
   Link2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ROLE_LABELS, ROLE_COLORS, type UserRole } from "@/hooks/useAuth";
+import { type UserRole } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-
-const ROLES: UserRole[] = ["admin", "hwp", "tom", "kam", "tl"];
 
 type UserForm = {
   email: string;
   password: string;
   name: string;
-  role: UserRole;
   companyName: string;
   airtableAccountId: string;
 };
@@ -81,7 +78,6 @@ const emptyForm: UserForm = {
   email: "",
   password: "",
   name: "",
-  role: "hwp",
   companyName: "",
   airtableAccountId: "",
 };
@@ -263,7 +259,6 @@ function AdminUsersContent() {
       email: form.email,
       password: form.password,
       name: form.name,
-      role: form.role,
       companyName: form.companyName || undefined,
       airtableAccountId: form.airtableAccountId || undefined,
     });
@@ -275,7 +270,6 @@ function AdminUsersContent() {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
       companyName: user.companyName ?? "",
       airtableAccountId: user.airtableAccountId ?? "",
       password: "",
@@ -337,8 +331,8 @@ function AdminUsersContent() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{user.name}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[user.role as UserRole]}`}>
-                      {ROLE_LABELS[user.role as UserRole]}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                      {user.airtableAccountId ? "HWP" : "Intern"}
                     </span>
                     {!user.isActive && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">Inaktiv</span>
@@ -437,24 +431,6 @@ function AdminUsersContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Rolle *</Label>
-                <Select
-                  value={form.role}
-                  onValueChange={(v) => setForm({ ...form, role: v as UserRole })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {ROLE_LABELS[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
                 <Label>Unternehmen</Label>
                 <Input
                   value={form.companyName}
@@ -466,34 +442,19 @@ function AdminUsersContent() {
                 <Label className="flex items-center gap-1.5">
                   <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
                   Airtable Account-ID
-                  {form.role === "hwp" && (
-                    <Badge variant="outline" className="text-xs ml-1">Pflichtfeld für HWP</Badge>
-                  )}
                 </Label>
-                {form.role === "hwp" ? (
-                  <AirtableAccountPicker
-                    value={form.airtableAccountId}
-                    onChange={(accountId, name) => {
-                      setForm(f => ({
-                        ...f,
-                        airtableAccountId: accountId,
-                        // Name automatisch befüllen wenn noch leer
-                        name: f.name || name || f.name,
-                      }));
-                    }}
-                  />
-                ) : (
-                  <Input
-                    value={form.airtableAccountId}
-                    onChange={(e) => setForm({ ...form, airtableAccountId: e.target.value })}
-                    placeholder="accXXXXXXXXXXXXXX"
-                    className="font-mono text-sm"
-                  />
-                )}
+                <AirtableAccountPicker
+                  value={form.airtableAccountId}
+                  onChange={(accountId, name) => {
+                    setForm(f => ({
+                      ...f,
+                      airtableAccountId: accountId,
+                      name: f.name || name || f.name,
+                    }));
+                  }}
+                />
                 <p className="text-xs text-muted-foreground">
-                  {form.role === "hwp"
-                    ? "Verknüpft den HWP-Login mit seinem Airtable-Account. Klicken Sie auf den Button um aus Airtable zu wählen."
-                    : "Nur für HWP-Benutzer relevant."}
+                  Verknüpft den Benutzer mit einem Airtable-Account.
                 </p>
               </div>
             </div>
@@ -544,24 +505,6 @@ function AdminUsersContent() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Rolle</Label>
-                <Select
-                  value={editForm.role ?? "hwp"}
-                  onValueChange={(v) => setEditForm({ ...editForm, role: v as UserRole })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {ROLE_LABELS[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
                 <Label>Unternehmen</Label>
                 <Input
                   value={editForm.companyName ?? ""}
@@ -573,19 +516,10 @@ function AdminUsersContent() {
                   <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
                   Airtable Account-ID
                 </Label>
-                {editForm.role === "hwp" ? (
-                  <AirtableAccountPicker
-                    value={editForm.airtableAccountId ?? ""}
-                    onChange={(accountId) => setEditForm(f => ({ ...f, airtableAccountId: accountId }))}
-                  />
-                ) : (
-                  <Input
-                    value={editForm.airtableAccountId ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, airtableAccountId: e.target.value })}
-                    className="font-mono text-sm"
-                    placeholder="accXXXXXXXXXXXXXX"
-                  />
-                )}
+                <AirtableAccountPicker
+                  value={editForm.airtableAccountId ?? ""}
+                  onChange={(accountId) => setEditForm(f => ({ ...f, airtableAccountId: accountId }))}
+                />
               </div>
             </div>
             <DialogFooter>

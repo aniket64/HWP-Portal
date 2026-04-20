@@ -499,7 +499,7 @@ export const mehrkostenRouter = router({
       freigegebenerBetrag: z.number().int().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (!["admin", "tom", "kam"].includes(ctx.user.role)) {
+      if (ctx.user.role === "hwp") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung zur Freigabe" });
       }
       const nachtrag = await getMkNachtragById(input.nachtragId);
@@ -526,7 +526,7 @@ export const mehrkostenRouter = router({
       kommentar: z.string().min(1, "Ablehnungsgrund erforderlich"),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (!["admin", "tom", "kam"].includes(ctx.user.role)) {
+      if (ctx.user.role === "hwp") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung" });
       }
       const nachtrag = await getMkNachtragById(input.nachtragId);
@@ -549,20 +549,13 @@ export const mehrkostenRouter = router({
   deleteRechnung: protectedProcedure
     .input(z.object({ rechnungId: z.number().int() }))
     .mutation(async ({ input, ctx }) => {
-      // Nur Admins, TOMs, KAMs und TLs dürfen löschen
-      if (!["admin", "tom", "kam", "tl"].includes(ctx.user.role)) {
+      // Interne Nutzer duerfen loeschen, HWP nur unter zusaetzlichen Bedingungen.
+      if (ctx.user.role === "hwp") {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung zum Löschen" });
       }
       // Rechnung laden
       const rechnung = await getMkRechnungById(input.rechnungId);
       if (!rechnung) throw new TRPCError({ code: "NOT_FOUND", message: "Rechnung nicht gefunden" });
-      // Nicht-Admins dürfen nur Entwürfe löschen
-      if (ctx.user.role !== "admin" && rechnung.status !== "entwurf") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Nur Admins können Rechnungen mit Status "${rechnung.status}" löschen`,
-        });
-      }
       // Anträge, Positionen und Rechnung löschen
       await deleteMkNachtraegeForRechnung(input.rechnungId);
       await deleteMkPositionen(input.rechnungId);

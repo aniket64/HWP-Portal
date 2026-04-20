@@ -2,11 +2,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
-  defaultPermissions,
   InsertUser,
   InsertUserHwpAssignment,
-  PermissionSet,
-  rolePermissions,
   teams,
   teamMitglieder,
   teamHwpZuordnungen,
@@ -15,7 +12,6 @@ import {
   mkNachtraege,
   User,
   userHwpAssignments,
-  users,
   Team,
   TeamMitglied,
   TeamHwpZuordnung,
@@ -24,14 +20,6 @@ import * as airtableClient from "./airtableClient";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _sqlClient: postgres.Sql | null = null;
-
-type MemoryRolePermission = {
-  id: number;
-  role: User["role"];
-  permissions: PermissionSet;
-  updatedAt: Date;
-  updatedBy: number | null;
-};
 
 type MemoryHwpAssignment = {
   id: number;
@@ -49,7 +37,6 @@ type MemoryMkNachtrag = any;
 
 const memoryState: {
   users: User[];
-  rolePermissions: MemoryRolePermission[];
   assignments: MemoryHwpAssignment[];
   teams: MemoryTeam[];
   teamMitglieder: MemoryTeamMitglied[];
@@ -58,7 +45,6 @@ const memoryState: {
   mkPositionen: MemoryMkPosition[];
   mkNachtraege: MemoryMkNachtrag[];
   nextUserId: number;
-  nextRolePermissionId: number;
   nextAssignmentId: number;
   nextTeamId: number;
   nextTeamMitgliedId: number;
@@ -68,7 +54,6 @@ const memoryState: {
   nextMkNachtragId: number;
 } = {
   users: [],
-  rolePermissions: [],
   assignments: [],
   teams: [],
   teamMitglieder: [],
@@ -77,7 +62,6 @@ const memoryState: {
   mkPositionen: [],
   mkNachtraege: [],
   nextUserId: 1,
-  nextRolePermissionId: 1,
   nextAssignmentId: 1,
   nextTeamId: 1,
   nextTeamMitgliedId: 1,
@@ -156,13 +140,13 @@ function mapAirtableUserToUser(at: any): User {
     email: String(at.email ?? ""),
     passwordHash: String(at.passwordHash ?? ""),
     name: String(at.name ?? ""),
-    role: ((at.role as User["role"]) ?? "hwp"),
     airtableAccountId: at.airtableAccountId ? String(at.airtableAccountId) : null,
     companyName: at.companyName ? String(at.companyName) : null,
     isActive: Boolean(at.isActive),
     createdAt: at.createdAt ? new Date(at.createdAt) : new Date(),
     updatedAt: at.updatedAt ? new Date(at.updatedAt) : new Date(),
     lastSignedIn: at.lastSignedIn ? new Date(at.lastSignedIn) : null,
+    role: at.airtableAccountId ? "hwp" : "internal",
   };
 }
 
@@ -244,14 +228,7 @@ export async function getUserByEmail(email: string) {
     return memoryState.users.find((u) => u.email === normalizeEmail(email));
   }
 
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
-  return result[0] ?? undefined;
+  return undefined;
 }
 
 export async function getUserById(id: number) {
@@ -266,10 +243,10 @@ export async function getUserById(id: number) {
     return memoryState.users.find((u) => u.id === id);
   }
 
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result[0] ?? undefined;
+  const recordId = await resolveAirtableUserRecordId(id);
+  if (!recordId) return undefined;
+  const at = await airtableClient.getUserByIdAirtable(recordId);
+  return mapAirtableUserToUser(at);
 }
 
 export async function getAllUsers() {
@@ -284,9 +261,7 @@ export async function getAllUsers() {
     );
   }
 
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(users).orderBy(users.createdAt);
+  return airtableClient.getAllUsersAirtable().then((rows) => rows.map(mapAirtableUserToUser));
 }
 
 export async function createUser(data: InsertUser) {
@@ -295,7 +270,6 @@ export async function createUser(data: InsertUser) {
       Name: data.name,
       Email: normalizeEmail(data.email),
       "Password Hash": data.passwordHash,
-      Role: data.role ?? "hwp",
       "Airtable Account ID": data.airtableAccountId ?? null,
       "Company Name": data.companyName ?? null,
       "Is Active": data.isActive ?? true,
@@ -319,23 +293,20 @@ export async function createUser(data: InsertUser) {
       email: normalizeEmail(data.email),
       passwordHash: data.passwordHash,
       name: data.name,
-      role: data.role ?? "hwp",
       airtableAccountId: data.airtableAccountId ?? null,
       companyName: data.companyName ?? null,
       isActive: data.isActive ?? true,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: data.lastSignedIn ?? null,
+      role: data.airtableAccountId ? "hwp" : "internal",
     };
 
     memoryState.users.push(newUser);
     return newUser;
   }
 
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.insert(users).values(data);
-  return getUserByEmail(data.email);
+  return undefined;
 }
 
 export async function updateUser(
@@ -350,7 +321,6 @@ export async function updateUser(
     if (data.name !== undefined) fields.Name = data.name;
     if (data.email !== undefined) fields.Email = normalizeEmail(data.email);
     if (data.passwordHash !== undefined) fields["Password Hash"] = data.passwordHash;
-    if (data.role !== undefined) fields.Role = data.role;
     if (data.airtableAccountId !== undefined)
       fields["Airtable Account ID"] = data.airtableAccountId;
     if (data.companyName !== undefined) fields["Company Name"] = data.companyName;
@@ -380,10 +350,22 @@ export async function updateUser(
     return updated;
   }
 
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.update(users).set(data).where(eq(users.id, id));
-  return getUserById(id);
+  const recordId = await resolveAirtableUserRecordId(id);
+  if (!recordId) return undefined;
+  const fields: Record<string, unknown> = {};
+  if (data.name !== undefined) fields.Name = data.name;
+  if (data.email !== undefined) fields.Email = normalizeEmail(data.email);
+  if (data.passwordHash !== undefined) fields["Password Hash"] = data.passwordHash;
+  if (data.airtableAccountId !== undefined)
+    fields["Airtable Account ID"] = data.airtableAccountId;
+  if (data.companyName !== undefined) fields["Company Name"] = data.companyName;
+  if (data.isActive !== undefined) fields["Is Active"] = data.isActive;
+  if (data.lastSignedIn !== undefined)
+    fields["Last Signed In"] = data.lastSignedIn
+      ? new Date(data.lastSignedIn).toISOString()
+      : null;
+  const at = await airtableClient.updateUserAirtable(recordId, fields);
+  return mapAirtableUserToUser(at);
 }
 
 export async function deleteUser(id: number) {
@@ -403,9 +385,9 @@ export async function deleteUser(id: number) {
     return;
   }
 
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db.delete(users).where(eq(users.id, id));
+  const recordId = await resolveAirtableUserRecordId(id);
+  if (!recordId) return;
+  await airtableClient.deleteUserAirtable(recordId);
 }
 
 export async function updateLastSignedIn(id: number) {
@@ -422,103 +404,7 @@ export async function updateLastSignedIn(id: number) {
     return;
   }
 
-  const db = await getDb();
-  if (!db) return;
-  await db
-    .update(users)
-    .set({ lastSignedIn: new Date() })
-    .where(eq(users.id, id));
-}
-
-// ─── Role Permissions Queries ─────────────────────────────────────────────────
-
-export async function getRolePermissions() {
-  if (useMemoryFallback()) {
-    return memoryState.rolePermissions;
-  }
-
-  const db = await getDb();
-  if (!db) return [];
-  return db.select().from(rolePermissions);
-}
-
-export async function getRolePermission(role: string) {
-  if (useMemoryFallback()) {
-    return memoryState.rolePermissions.find((p) => p.role === role);
-  }
-
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db
-    .select()
-    .from(rolePermissions)
-    .where(eq(rolePermissions.role, role as any))
-    .limit(1);
-  return result[0] ?? undefined;
-}
-
-export async function upsertRolePermission(
-  role: string,
-  permissions: PermissionSet,
-  updatedBy: number
-) {
-  if (useMemoryFallback()) {
-    const existing = memoryState.rolePermissions.find((p) => p.role === role);
-    if (existing) {
-      existing.permissions = permissions;
-      existing.updatedBy = updatedBy;
-      existing.updatedAt = new Date();
-      return;
-    }
-
-    memoryState.rolePermissions.push({
-      id: memoryState.nextRolePermissionId++,
-      role: role as User["role"],
-      permissions,
-      updatedBy,
-      updatedAt: new Date(),
-    });
-    return;
-  }
-
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  await db
-    .insert(rolePermissions)
-    .values({ role: role as any, permissions, updatedBy })
-    .onConflictDoUpdate({
-      target: rolePermissions.role,
-      set: { permissions, updatedBy, updatedAt: new Date() },
-    });
-}
-
-export async function initDefaultPermissions() {
-  if (useMemoryFallback()) {
-    for (const [role, perms] of Object.entries(defaultPermissions)) {
-      const existing = memoryState.rolePermissions.find((p) => p.role === role);
-      if (!existing) {
-        memoryState.rolePermissions.push({
-          id: memoryState.nextRolePermissionId++,
-          role: role as User["role"],
-          permissions: perms,
-          updatedBy: null,
-          updatedAt: new Date(),
-        });
-      }
-    }
-    return;
-  }
-
-  const db = await getDb();
-  if (!db) return;
-  for (const [role, perms] of Object.entries(defaultPermissions)) {
-    const existing = await getRolePermission(role);
-    if (!existing) {
-      await db
-        .insert(rolePermissions)
-        .values({ role: role as any, permissions: perms });
-    }
-  }
+  await updateUser(id, { lastSignedIn: new Date() });
 }
 
 // ─── HWP-Zuordnungen (KAM/TOM → HWP-Partner) ───────────────────────────────────────────────

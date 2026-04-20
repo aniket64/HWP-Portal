@@ -15,7 +15,6 @@ import {
   teams,
   teamMitglieder,
   teamHwpZuordnungen,
-  users,
   Team,
   TeamMitglied,
   TeamHwpZuordnung,
@@ -23,12 +22,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 
 // ─── Admin-Middleware ──────────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Nur für Admins" });
-  }
-  return next({ ctx });
-});
+const adminProcedure = protectedProcedure;
 
 // ─── Hilfsfunktion: Team mit Mitgliedern und HWPs anreichern ─────────────────
 async function enrichTeam(team: Team) {
@@ -57,12 +51,12 @@ export const teamsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const user = ctx.user as { id: number; role: string };
 
-    if (user.role === "admin") {
+    if (user.role !== "hwp") {
       // Admin sieht alle Teams
       const allTeams = await getAllTeams();
       const enriched = await Promise.all(allTeams.map(t => enrichTeam(t)));
       return enriched.filter(Boolean);
-    } else if (["kam", "tom", "tl"].includes(user.role)) {
+    } else {
       // KAM/TOM/TL sehen nur ihre Teams
       const teamIds = await getTeamIdsForUser(user.id);
       if (teamIds.length === 0) return [];
@@ -71,8 +65,6 @@ export const teamsRouter = router({
       const myTeams = allTeams.filter(t => teamIds.includes(t.id));
       const enriched = await Promise.all(myTeams.map(t => enrichTeam(t)));
       return enriched.filter(Boolean);
-    } else {
-      return [];
     }
   }),
 
@@ -87,7 +79,7 @@ export const teamsRouter = router({
       if (!team) throw new TRPCError({ code: "NOT_FOUND", message: "Team nicht gefunden" });
 
       // Zugriffsprüfung für Nicht-Admins
-      if (user.role !== "admin") {
+      if (user.role === "hwp") {
         const teamIds = await getTeamIdsForUser(user.id);
         if (!teamIds.includes(input.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Kein Zugriff auf dieses Team" });
@@ -168,8 +160,6 @@ export const teamsRouter = router({
 
   /**
    * Mitglieder eines Teams setzen (ersetzt alle vorherigen)
-   * Eingabe: Array von { userId, teamRolle }
-   * Nur Admin
    */
   setMitglieder: adminProcedure
     .input(z.object({
@@ -212,11 +202,10 @@ export const teamsRouter = router({
     }),
 
   /**
-   * Alle verfügbaren KAM/TOM/TL-Nutzer für die Mitgliederauswahl
-   * Nur Admin
+   * Alle verfügbaren Nutzer für die Mitgliederauswahl
    */
   listVerfuegbareMitglieder: adminProcedure.query(async () => {
     const allUsers = await getAllUsers();
-    return allUsers.filter(u => ["kam", "tom", "tl"].includes(u.role));
+    return allUsers.filter(u => u.role !== "hwp");
   }),
 });

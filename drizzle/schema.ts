@@ -10,117 +10,29 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-// ─── Rollen ───────────────────────────────────────────────────────────────────
-export const roleEnum = pgEnum("role", ["admin", "hwp", "tom", "kam", "tl"]);
-
-// ─── Berechtigungen (JSON-Objekt pro Rolle) ───────────────────────────────────
-// Wird in der permissions-Tabelle gespeichert und kann vom Admin angepasst werden
-export type PermissionSet = {
-  viewMehrkosten: boolean;
-  editMehrkosten: boolean;
-  approveMehrkosten: boolean;
-  viewAllHWP: boolean;
-  viewOwnHWP: boolean;
-  manageUsers: boolean;
-  manageRoles: boolean;
-  viewInvoices: boolean;
-  uploadDocuments: boolean;
-  viewReports: boolean;
+export type User = {
+  id: number;
+  email: string;
+  passwordHash: string;
+  name: string;
+  role: "hwp" | "internal";
+  airtableAccountId: string | null;
+  companyName: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastSignedIn: Date | null;
 };
 
-export const defaultPermissions: Record<string, PermissionSet> = {
-  admin: {
-    viewMehrkosten: true,
-    editMehrkosten: true,
-    approveMehrkosten: true,
-    viewAllHWP: true,
-    viewOwnHWP: true,
-    manageUsers: true,
-    manageRoles: true,
-    viewInvoices: true,
-    uploadDocuments: true,
-    viewReports: true,
-  },
-  tom: {
-    viewMehrkosten: true,
-    editMehrkosten: true,
-    approveMehrkosten: true,
-    viewAllHWP: true,
-    viewOwnHWP: true,
-    manageUsers: false,
-    manageRoles: false,
-    viewInvoices: true,
-    uploadDocuments: true,
-    viewReports: true,
-  },
-  kam: {
-    viewMehrkosten: true,
-    editMehrkosten: false,
-    approveMehrkosten: true,
-    viewAllHWP: true,
-    viewOwnHWP: true,
-    manageUsers: false,
-    manageRoles: false,
-    viewInvoices: true,
-    uploadDocuments: false,
-    viewReports: true,
-  },
-  tl: {
-    viewMehrkosten: true,
-    editMehrkosten: false,
-    approveMehrkosten: false,
-    viewAllHWP: false,
-    viewOwnHWP: true,
-    manageUsers: false,
-    manageRoles: false,
-    viewInvoices: false,
-    uploadDocuments: false,
-    viewReports: false,
-  },
-  hwp: {
-    viewMehrkosten: true,
-    editMehrkosten: false,
-    approveMehrkosten: false,
-    viewAllHWP: false,
-    viewOwnHWP: true,
-    manageUsers: false,
-    manageRoles: false,
-    viewInvoices: true,
-    uploadDocuments: true,
-    viewReports: false,
-  },
+export type InsertUser = {
+  email: string;
+  passwordHash: string;
+  name: string;
+  airtableAccountId?: string | null;
+  companyName?: string | null;
+  isActive?: boolean;
+  lastSignedIn?: Date | null;
 };
-
-// ─── Users ────────────────────────────────────────────────────────────────────
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: varchar("email", { length: 320 }).notNull().unique(),
-  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
-  name: text("name").notNull(),
-  role: roleEnum("role").notNull().default("hwp"),
-  // Für HWP: Verknüpfung mit Airtable Account ID
-  airtableAccountId: varchar("airtableAccountId", { length: 64 }),
-  // Für HWP: Firmenname
-  companyName: varchar("companyName", { length: 255 }),
-  isActive: boolean("isActive").notNull().default(true),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn"),
-});
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-
-// ─── Rollen-Berechtigungen (anpassbar durch Admin) ───────────────────────────
-export const rolePermissions = pgTable("role_permissions", {
-  id: serial("id").primaryKey(),
-  role: roleEnum("role").notNull().unique(),
-  permissions: json("permissions").notNull().$type<PermissionSet>(),
-  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-  updatedBy: integer("updatedBy"),
-});
-
-export type RolePermission = typeof rolePermissions.$inferSelect;
 
 // ─── App-Einstellungen ───────────────────────────────────────────────────────
 export const appSettings = pgTable("app_settings", {
