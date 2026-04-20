@@ -4,7 +4,7 @@ services:
     env: node
     plan: starter
     buildCommand: corepack enable && corepack prepare pnpm@10.4.1 --activate && pnpm install --frozen-lockfile && pnpm predeploy:render && pnpm build && pnpm db:migrate
-    startCommand: pnpm start
+    startCommand: pnpm db:migrate && pnpm start
     healthCheckPath: /api/ready
     autoDeploy: true
     envVars:
@@ -25,9 +25,9 @@ services:
       - key: AIRTABLE_TEAMS_TABLE_ID
         value: tbl9bnTlbptVYxC59
       - key: USE_AIRTABLE_USERS
-        value: "true"
+        value: "false"
       - key: USE_AIRTABLE_TEAMS
-        value: "true"
+        value: "false"
       - key: BUILT_IN_FORGE_API_URL
         sync: false
       - key: BUILT_IN_FORGE_API_KEY
