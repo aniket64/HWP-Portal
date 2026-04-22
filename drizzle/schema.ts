@@ -15,7 +15,7 @@ export type User = {
   email: string;
   passwordHash: string;
   name: string;
-  role: "hwp" | "internal";
+  role: "admin" | "hwp" | "tom" | "kam" | "tl";
   airtableAccountId: string | null;
   companyName: string | null;
   isActive: boolean;
@@ -28,6 +28,7 @@ export type InsertUser = {
   email: string;
   passwordHash: string;
   name: string;
+  role?: "admin" | "hwp" | "tom" | "kam" | "tl";
   airtableAccountId?: string | null;
   companyName?: string | null;
   isActive?: boolean;

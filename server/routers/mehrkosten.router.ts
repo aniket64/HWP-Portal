@@ -499,7 +499,7 @@ export const mehrkostenRouter = router({
       freigegebenerBetrag: z.number().int().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role === "hwp") {
+      if (!["admin", "tom", "kam"].includes(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung zur Freigabe" });
       }
       const nachtrag = await getMkNachtragById(input.nachtragId);
@@ -526,7 +526,7 @@ export const mehrkostenRouter = router({
       kommentar: z.string().min(1, "Ablehnungsgrund erforderlich"),
     }))
     .mutation(async ({ input, ctx }) => {
-      if (ctx.user.role === "hwp") {
+      if (!["admin", "tom", "kam"].includes(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung" });
       }
       const nachtrag = await getMkNachtragById(input.nachtragId);
@@ -549,8 +549,8 @@ export const mehrkostenRouter = router({
   deleteRechnung: protectedProcedure
     .input(z.object({ rechnungId: z.number().int() }))
     .mutation(async ({ input, ctx }) => {
-      // Interne Nutzer duerfen loeschen, HWP nur unter zusaetzlichen Bedingungen.
-      if (ctx.user.role === "hwp") {
+      // Nur Admins, TOMs, KAMs und TLs dürfen löschen
+      if (!["admin", "tom", "kam", "tl"].includes(ctx.user.role)) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Keine Berechtigung zum Löschen" });
       }
       // Rechnung laden

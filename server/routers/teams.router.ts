@@ -9,7 +9,7 @@
  */
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { router, protectedProcedure } from "../_core/trpc";
+import { adminProcedure, router, protectedProcedure } from "../_core/trpc";
 import { getDb, getAllTeams, getTeamById, createTeam, updateTeam, deleteTeam, getTeamMitgliederWithUsers, setTeamMitglieder, getTeamHwpZuordnungen, setTeamHwpZuordnungen, getAllUsers, getTeamIdsForUser } from "../db";
 import {
   teams,
@@ -20,9 +20,6 @@ import {
   TeamHwpZuordnung,
 } from "../../drizzle/schema";
 import { eq, and, inArray } from "drizzle-orm";
-
-// ─── Admin-Middleware ──────────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure;
 
 // ─── Hilfsfunktion: Team mit Mitgliedern und HWPs anreichern ─────────────────
 async function enrichTeam(team: Team) {
@@ -51,12 +48,12 @@ export const teamsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const user = ctx.user as { id: number; role: string };
 
-    if (user.role !== "hwp") {
+    if (user.role === "admin") {
       // Admin sieht alle Teams
       const allTeams = await getAllTeams();
       const enriched = await Promise.all(allTeams.map(t => enrichTeam(t)));
       return enriched.filter(Boolean);
-    } else {
+    } else if (["kam", "tom", "tl"].includes(user.role)) {
       // KAM/TOM/TL sehen nur ihre Teams
       const teamIds = await getTeamIdsForUser(user.id);
       if (teamIds.length === 0) return [];
@@ -65,6 +62,8 @@ export const teamsRouter = router({
       const myTeams = allTeams.filter(t => teamIds.includes(t.id));
       const enriched = await Promise.all(myTeams.map(t => enrichTeam(t)));
       return enriched.filter(Boolean);
+    } else {
+      return [];
     }
   }),
 
@@ -79,7 +78,7 @@ export const teamsRouter = router({
       if (!team) throw new TRPCError({ code: "NOT_FOUND", message: "Team nicht gefunden" });
 
       // Zugriffsprüfung für Nicht-Admins
-      if (user.role === "hwp") {
+      if (user.role !== "admin") {
         const teamIds = await getTeamIdsForUser(user.id);
         if (!teamIds.includes(input.id)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Kein Zugriff auf dieses Team" });
@@ -206,6 +205,6 @@ export const teamsRouter = router({
    */
   listVerfuegbareMitglieder: adminProcedure.query(async () => {
     const allUsers = await getAllUsers();
-    return allUsers.filter(u => u.role !== "hwp");
+    return allUsers.filter(u => ["kam", "tom", "tl"].includes(u.role));
   }),
 });

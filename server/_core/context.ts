@@ -34,8 +34,7 @@ export async function createContext(
     if (token) {
       const payload = await verifyJWT(token);
       if (payload) {
-        const resolved = await getUserById(payload.userId);
-        user = resolved ? { ...resolved, role: resolved.airtableAccountId ? "hwp" : "internal" } : null;
+        user = (await getUserById(payload.userId)) ?? null;
       }
     }
   } catch (error) {

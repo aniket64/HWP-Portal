@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getAllCachedRecords } from "../airtable";
 import { getAllSettings, setSetting } from "../cache";
 import {
@@ -39,9 +39,6 @@ function getISOWeek(date: Date): { kw: number; year: number } {
     );
   return { kw, year: d.getFullYear() };
 }
-
-// ─── Admin-Middleware ─────────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure;
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 export const dashboardRouter = router({

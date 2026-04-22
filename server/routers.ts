@@ -44,10 +44,7 @@ import { dashboardRouter } from "./routers/dashboard.router";
 import { mehrkostenRouter as mkKlassifizierungRouter } from "./routers/mehrkosten.router";
 import { hwpRouter } from "./routers/hwp.router";
 import { teamsRouter } from "./routers/teams.router";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-
-// ─── Middleware: Authenticated-only ─────────────────────────────────────────
-const adminProcedure = protectedProcedure;
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 export const appRouter = router({
@@ -132,6 +129,7 @@ export const appRouter = router({
           email: input.email.toLowerCase(),
           passwordHash,
           name: input.name,
+          role: "hwp",
           companyName: input.companyName,
           airtableAccountId: input.airtableAccountId,
           isActive: false, // Muss vom Admin freigeschaltet werden
@@ -154,6 +152,7 @@ export const appRouter = router({
           email: z.string().email(),
           password: z.string().min(8),
           name: z.string().min(1),
+          role: z.enum(["admin", "hwp", "tom", "kam", "tl"]).optional(),
           airtableAccountId: z.string().optional(),
           companyName: z.string().optional(),
         })
@@ -168,6 +167,7 @@ export const appRouter = router({
           email: input.email.toLowerCase(),
           passwordHash,
           name: input.name,
+          role: input.role ?? "hwp",
           airtableAccountId: input.airtableAccountId,
           companyName: input.companyName,
           isActive: true,
@@ -183,6 +183,7 @@ export const appRouter = router({
           id: z.number(),
           name: z.string().min(1).optional(),
           email: z.string().email().optional(),
+          role: z.enum(["admin", "hwp", "tom", "kam", "tl"]).optional(),
           isActive: z.boolean().optional(),
           airtableAccountId: z.string().optional().nullable(),
           companyName: z.string().optional().nullable(),

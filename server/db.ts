@@ -130,6 +130,13 @@ function formatHwpAccountLines(items: Array<{ hwpAccountId: string; hwpName: str
   return items.map((item) => `${item.hwpAccountId}|${item.hwpName}`).join("\n");
 }
 
+const ROLE_VALUES: User["role"][] = ["admin", "hwp", "tom", "kam", "tl"];
+
+function normalizeRole(value: unknown, fallback: User["role"] = "hwp"): User["role"] {
+  const role = String(value ?? "").toLowerCase() as User["role"];
+  return ROLE_VALUES.includes(role) ? role : fallback;
+}
+
 function mapAirtableUserToUser(at: any): User {
   const recordId = String(at.id ?? "");
   const numericId = stableNumericId(`user:${recordId}`);
@@ -140,13 +147,13 @@ function mapAirtableUserToUser(at: any): User {
     email: String(at.email ?? ""),
     passwordHash: String(at.passwordHash ?? ""),
     name: String(at.name ?? ""),
+    role: normalizeRole(at.role, "hwp"),
     airtableAccountId: at.airtableAccountId ? String(at.airtableAccountId) : null,
     companyName: at.companyName ? String(at.companyName) : null,
     isActive: Boolean(at.isActive),
     createdAt: at.createdAt ? new Date(at.createdAt) : new Date(),
     updatedAt: at.updatedAt ? new Date(at.updatedAt) : new Date(),
     lastSignedIn: at.lastSignedIn ? new Date(at.lastSignedIn) : null,
-    role: at.airtableAccountId ? "hwp" : "internal",
   };
 }
 
@@ -270,6 +277,7 @@ export async function createUser(data: InsertUser) {
       Name: data.name,
       Email: normalizeEmail(data.email),
       "Password Hash": data.passwordHash,
+      Role: normalizeRole(data.role, "hwp"),
       "Airtable Account ID": data.airtableAccountId ?? null,
       "Company Name": data.companyName ?? null,
       "Is Active": data.isActive ?? true,
@@ -293,13 +301,13 @@ export async function createUser(data: InsertUser) {
       email: normalizeEmail(data.email),
       passwordHash: data.passwordHash,
       name: data.name,
+      role: normalizeRole(data.role, "hwp"),
       airtableAccountId: data.airtableAccountId ?? null,
       companyName: data.companyName ?? null,
       isActive: data.isActive ?? true,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: data.lastSignedIn ?? null,
-      role: data.airtableAccountId ? "hwp" : "internal",
     };
 
     memoryState.users.push(newUser);
@@ -321,6 +329,7 @@ export async function updateUser(
     if (data.name !== undefined) fields.Name = data.name;
     if (data.email !== undefined) fields.Email = normalizeEmail(data.email);
     if (data.passwordHash !== undefined) fields["Password Hash"] = data.passwordHash;
+    if (data.role !== undefined) fields.Role = normalizeRole(data.role);
     if (data.airtableAccountId !== undefined)
       fields["Airtable Account ID"] = data.airtableAccountId;
     if (data.companyName !== undefined) fields["Company Name"] = data.companyName;
@@ -343,6 +352,7 @@ export async function updateUser(
       ...existing,
       ...data,
       email: data.email ? normalizeEmail(data.email) : existing.email,
+      role: data.role ? normalizeRole(data.role, existing.role) : existing.role,
       updatedAt: new Date(),
     };
 
@@ -356,6 +366,7 @@ export async function updateUser(
   if (data.name !== undefined) fields.Name = data.name;
   if (data.email !== undefined) fields.Email = normalizeEmail(data.email);
   if (data.passwordHash !== undefined) fields["Password Hash"] = data.passwordHash;
+  if (data.role !== undefined) fields.Role = normalizeRole(data.role);
   if (data.airtableAccountId !== undefined)
     fields["Airtable Account ID"] = data.airtableAccountId;
   if (data.companyName !== undefined) fields["Company Name"] = data.companyName;
