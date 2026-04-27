@@ -1,5 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { removeToken } from "@/lib/auth-token";
+import { isLoginDisabled } from "@/lib/feature-flags";
 import { useCallback } from "react";
 
 export type UserRole = "admin" | "hwp" | "tom" | "kam" | "tl";
@@ -16,10 +17,23 @@ export type AuthUser = {
   lastSignedIn?: Date | null;
 };
 
+const disabledUser: AuthUser = {
+  id: 1,
+  email: "render@hwp-portal.local",
+  name: "Render Admin",
+  role: "admin",
+  airtableAccountId: null,
+  companyName: null,
+  isActive: true,
+  createdAt: new Date(),
+  lastSignedIn: null,
+};
+
 export function useAuth() {
   const { data: user, isLoading, error, refetch } = trpc.auth.me.useQuery(undefined, {
     retry: false,
     staleTime: 5 * 60 * 1000,
+    enabled: !isLoginDisabled,
     // Kein refetchOnWindowFocus – verhindert unerwartete Logouts bei Tab-Wechsel
     refetchOnWindowFocus: false,
   });
@@ -33,14 +47,19 @@ export function useAuth() {
   });
 
   const logout = useCallback(() => {
+    if (isLoginDisabled) {
+      return;
+    }
     logoutMutation.mutate();
   }, [logoutMutation]);
 
+  const effectiveUser = isLoginDisabled ? disabledUser : (user as AuthUser | null | undefined);
+
   return {
-    user: user as AuthUser | null | undefined,
-    isLoading,
+    user: effectiveUser,
+    isLoading: isLoginDisabled ? false : isLoading,
     error,
-    isAuthenticated: !!user,
+    isAuthenticated: isLoginDisabled ? true : !!user,
     logout,
     refetch,
   };

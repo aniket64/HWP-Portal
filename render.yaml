@@ -28,6 +28,10 @@ services:
         value: "false"
       - key: USE_AIRTABLE_TEAMS
         value: "false"
+      - key: DISABLE_LOGIN
+        value: "true"
+      - key: VITE_DISABLE_LOGIN
+        value: "true"
       - key: BUILT_IN_FORGE_API_URL
         sync: false
       - key: BUILT_IN_FORGE_API_KEY

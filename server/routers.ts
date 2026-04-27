@@ -17,6 +17,7 @@ import {
   hashPassword,
   verifyPassword,
 } from "./auth";
+import { createBypassUser, isLoginDisabled, toSafeUser } from "./_core/auth-mode";
 import {
   deltaSync,
   fullSync,
@@ -58,8 +59,7 @@ export const appRouter = router({
   auth: router({
     me: publicProcedure.query(({ ctx }) => {
       if (!ctx.user) return null;
-      const { passwordHash: _, ...user } = ctx.user as any;
-      return user;
+      return toSafeUser(ctx.user as any);
     }),
 
     login: publicProcedure
@@ -70,6 +70,11 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        if (isLoginDisabled()) {
+          const user = createBypassUser();
+          return { success: true, user: toSafeUser(user), token: null };
+        }
+
         const user = await getUserByEmail(input.email);
         if (!user || !user.isActive) {
           throw new TRPCError({
@@ -120,6 +125,13 @@ export const appRouter = router({
         airtableAccountId: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
+        if (isLoginDisabled()) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Registration is disabled in this environment",
+          });
+        }
+
         const existing = await getUserByEmail(input.email);
         if (existing) {
           throw new TRPCError({ code: "CONFLICT", message: "Diese E-Mail-Adresse ist bereits registriert" });

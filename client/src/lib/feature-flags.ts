@@ -1,0 +1,1 @@
+export const isLoginDisabled = import.meta.env.VITE_DISABLE_LOGIN === "true";

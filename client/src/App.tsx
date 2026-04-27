@@ -23,11 +23,17 @@ import Teams from "./pages/Teams";
 import Wochenplanung from "./pages/Wochenplanung";
 import { useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { isLoginDisabled } from "@/lib/feature-flags";
 
 function HomeRedirect() {
   const [, setLocation] = useLocation();
-  const { data: user, isLoading } = trpc.auth.me.useQuery(undefined, { retry: false });
+  const { data: user, isLoading } = trpc.auth.me.useQuery(undefined, { retry: false, enabled: !isLoginDisabled });
   useEffect(() => {
+    if (isLoginDisabled) {
+      setLocation("/dashboard");
+      return;
+    }
+
     if (!isLoading) {
       if (!user) {
         setLocation("/login");

@@ -142,6 +142,7 @@ function logStartupConfiguration() {
     AIRTABLE_TEAMS_TABLE_ID: process.env.AIRTABLE_TEAMS_TABLE_ID ?? "default",
     USE_AIRTABLE_USERS: process.env.USE_AIRTABLE_USERS ?? "false",
     USE_AIRTABLE_TEAMS: process.env.USE_AIRTABLE_TEAMS ?? "false",
+    DISABLE_LOGIN: process.env.DISABLE_LOGIN ?? "false",
   };
 
   console.log("[Startup] Runtime configuration:", configuration);

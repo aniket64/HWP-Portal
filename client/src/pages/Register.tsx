@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -17,11 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Loader2, Building2, AlertCircle, CheckCircle2, ArrowLeft, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isLoginDisabled } from "@/lib/feature-flags";
 
 export default function Register() {
   const [, setLocation] = useLocation();
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
+  const registerMutation = trpc.auth.registerHwp.useMutation({
+    onSuccess: () => {
+      setSuccess(true);
+    },
+    onError: (err) => {
+      setError(err.message || t("registerError"));
+    },
+  });
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -33,14 +42,15 @@ export default function Register() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const registerMutation = trpc.auth.registerHwp.useMutation({
-    onSuccess: () => {
-      setSuccess(true);
-    },
-    onError: (err) => {
-      setError(err.message || t("registerError"));
-    },
-  });
+  useEffect(() => {
+    if (isLoginDisabled) {
+      setLocation("/dashboard");
+    }
+  }, [setLocation]);
+
+  if (isLoginDisabled) {
+    return null;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

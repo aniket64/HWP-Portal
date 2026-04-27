@@ -2,6 +2,7 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
 import type { User } from "../../drizzle/schema";
 import { getUserById } from "../db";
 import { COOKIE_NAME, parseCookies, verifyJWT } from "../auth";
+import { createBypassUser, isLoginDisabled } from "./auth-mode";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -12,6 +13,14 @@ export type TrpcContext = {
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
+  if (isLoginDisabled()) {
+    return {
+      req: opts.req,
+      res: opts.res,
+      user: createBypassUser(),
+    };
+  }
+
   let user: User | null = null;
 
   try {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Loader2, Building2, AlertCircle, Globe } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { isLoginDisabled } from "@/lib/feature-flags";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -26,9 +27,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
-
   const utils = trpc.useUtils();
-
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: async (data) => {
       // JWT-Token in localStorage speichern – wird als Authorization-Header gesendet
@@ -44,6 +43,16 @@ export default function Login() {
       setError(err.message || "Login fehlgeschlagen");
     },
   });
+
+  useEffect(() => {
+    if (isLoginDisabled) {
+      setLocation("/dashboard");
+    }
+  }, [setLocation]);
+
+  if (isLoginDisabled) {
+    return null;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
